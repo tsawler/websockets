@@ -1,1 +1,1 @@
-# Working with websockets in Go
+# Working with Websockets in Go
