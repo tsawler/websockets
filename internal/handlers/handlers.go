@@ -15,8 +15,11 @@ var views = jet.NewSet(
 // Home displays the home page with some sample data
 func Home(w http.ResponseWriter, r *http.Request) {
 	data := make(jet.VarMap)
+
 	data.Set("user_id", 1)
+
 	data.Set("first", "Trevor")
+
 	dow := []string{
 		"Sunday",
 		"Monday",
@@ -27,6 +30,7 @@ func Home(w http.ResponseWriter, r *http.Request) {
 		"Saturday",
 	}
 	data.Set("dow", dow)
+
 	err := renderPage(w, "home.jet", data)
 	if err != nil {
 		_, _ = fmt.Fprint(w, "Error executing template:", err)
