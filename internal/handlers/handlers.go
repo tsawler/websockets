@@ -42,6 +42,7 @@ func SendData(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// renderPage renders the page using Jet templates
 func renderPage(w http.ResponseWriter, tmpl string, data jet.VarMap) error {
 	view, err := views.GetTemplate(tmpl)
 	if err != nil {
