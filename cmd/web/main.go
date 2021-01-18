@@ -11,7 +11,7 @@ func main() {
 
 	mux := routes()
 
-	log.Println("Staring application on port", port)
+	log.Println("Starting application on port", port)
 
 	_ = http.ListenAndServe(port, mux)
 }
