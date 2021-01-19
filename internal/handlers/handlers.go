@@ -3,9 +3,20 @@ package handlers
 import (
 	"fmt"
 	"github.com/CloudyKit/jet/v6"
+	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 )
+
+var broadcast = make(chan string)
+
+var clients = make(map[*websocket.Conn]bool)
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin:     func(r *http.Request) bool { return true },
+}
 
 var views = jet.NewSet(
 	jet.NewOSFileSystemLoader("./html"),
@@ -14,28 +25,10 @@ var views = jet.NewSet(
 
 // Home displays the home page with some sample data
 func Home(w http.ResponseWriter, r *http.Request) {
-	data := make(jet.VarMap)
-
-	data.Set("user_id", 1)
-
-	data.Set("first", "Trevor")
-
-	dow := []string{
-		"Sunday",
-		"Monday",
-		"Tuesday",
-		"Wednesday",
-		"Thursday",
-		"Friday",
-		"Saturday",
-	}
-	data.Set("dow", dow)
-
-	err := renderPage(w, "home.jet", data)
+	err := renderPage(w, "home.jet", nil)
 	if err != nil {
 		_, _ = fmt.Fprint(w, "Error executing template:", err)
 	}
-
 }
 
 // SendData displays the page for sending data via websockets
@@ -43,6 +36,58 @@ func SendData(w http.ResponseWriter, r *http.Request) {
 	err := renderPage(w, "send.jet", nil)
 	if err != nil {
 		_, _ = fmt.Fprint(w, "Error executing template:", err)
+	}
+}
+
+// WsEndPoint handles websocket connections
+func WsEndPoint(w http.ResponseWriter, r *http.Request) {
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+	}
+
+	log.Println(fmt.Sprintf("Client Connected from %s", r.RemoteAddr))
+
+	err = ws.WriteMessage(1, []byte("<em><small>Connected to server ... </small></em>"))
+	if err != nil {
+		log.Println(err)
+	}
+
+	clients[ws] = true
+
+	WsReader(ws)
+}
+
+// WsSend handles posting a message and broadcasting it
+func WsSend(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		return
+	}
+
+	for n, v := range r.PostForm {
+		log.Println("n", n, "v", v)
+	}
+
+	msg := r.Form.Get("payload")
+	log.Println("pushed", msg, "to channel")
+	broadcast <- msg
+
+	http.Redirect(w, r, "/send", http.StatusSeeOther)
+}
+
+// WsReader broadcasts messages
+func WsReader(conn *websocket.Conn) {
+	for {
+		val := <-broadcast
+		for client := range clients {
+			err := client.WriteMessage(websocket.TextMessage, []byte(val))
+			if err != nil {
+				log.Printf("Websocket error: %s", err)
+				_ = client.Close()
+				delete(clients, client)
+			}
+		}
 	}
 }
 
