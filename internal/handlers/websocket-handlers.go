@@ -7,10 +7,13 @@ import (
 	"net/http"
 )
 
+// broadcast is the channel to send broadcast messages to
 var broadcast = make(chan string)
 
+// clients is a map of connected clients
 var clients = make(map[*websocket.Conn]bool)
 
+// upgradeConnection is the websocket upgrader
 var upgradeConnection = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
