@@ -31,7 +31,8 @@
                     <label for="username">Username:</label>
                     <input class="form-control" type="text" name="username" id="username" autocomplete="off">
                 </div>
-                <div class="form-group">
+
+                <div class="form-group mt-2">
                     <label for="message">Message:</label>
                     <input class="form-control" type="text" name="message" id="message" autocomplete="off">
                 </div>
@@ -109,10 +110,14 @@
 
     socket.onmessage = msg => {
         let data = JSON.parse(msg.data);
-        if (data.action === "broadcast") {
-            o.innerHTML = o.innerHTML + data.message + "<br>";
-        } else if (data.action === "alert") {
-            notify(data.message, data.message_type);
+
+        switch(data.action) {
+            case "broadcast":
+                o.innerHTML = o.innerHTML + data.message + "<br>";
+                break;
+            case "alert":
+                notify(data.message, data.message_type);
+                break;
         }
     }
 
