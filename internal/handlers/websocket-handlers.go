@@ -17,6 +17,7 @@ var upgradeConnection = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
+// WsPayload defines the data we receive from teh client
 type WsPayload struct {
 	Action      string `json:"action"`
 	Message     string `json:"message"`
@@ -24,12 +25,14 @@ type WsPayload struct {
 	MessageType string `json:"message_type"`
 }
 
+// WsJsonResponse defines the json we send back to client
 type WsJsonResponse struct {
 	Action      string `json:"action"`
 	Message     string `json:"message"`
 	MessageType string `json:"message_type"`
 }
 
+// WebSocketConnection holds the websocket connection
 type WebSocketConnection struct {
 	*websocket.Conn
 }

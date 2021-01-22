@@ -20,8 +20,8 @@ func Home(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// SendData displays the page for sending data via websockets
-func SendData(w http.ResponseWriter, r *http.Request) {
+// SendAlertToConnectedUsers displays the page for sending data via websockets
+func SendAlertToConnectedUsers(w http.ResponseWriter, r *http.Request) {
 	err := renderPage(w, "send.jet", nil)
 	if err != nil {
 		_, _ = fmt.Fprint(w, "Error executing template:", err)
