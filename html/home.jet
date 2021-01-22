@@ -57,9 +57,11 @@
         crossorigin="anonymous"></script>
 
 <script src="https://unpkg.com/notie"></script>
+<script src="/static/reconnecting-websocket.min.js"></script>
 
 <script>
-    let socket = new WebSocket("ws://127.0.0.1:8080/ws");
+
+    let socket = new ReconnectingWebSocket("ws://127.0.0.1:8080/ws", null, {debug: true, reconnectInterval: 3000});
     let o = document.getElementById("output")
 
     document.getElementById("sendBtn").addEventListener("click", function () {
@@ -107,9 +109,9 @@
 
     socket.onerror = error => {
         console.log("Error:", error);
-        o.innerHTML = o.innerHTML + "<span class='text-danger'>"
-            + "Connection error!"
-            + "</span>"
+        o.innerHTML = o.innerHTML + "<small><span class='text-danger'>"
+            + "Connection error! Will attempt to reconnect..."
+            + "</span></small>"
             + "<br>";
     };
 
