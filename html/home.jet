@@ -60,10 +60,8 @@
         sendMessage()
     })
 
-    // window.addEventListener("keydown", function(event){
     document.getElementById("message").addEventListener("keydown", function(event){
-        console.log("key", event.keyCode);
-        if (event.keyCode === 13) {
+        if (event.code === "Enter") {
             event.preventDefault();
             event.stopPropagation();
             sendMessage();
