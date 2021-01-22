@@ -14,7 +14,6 @@ func routes() http.Handler {
 	mux.Get("/send", http.HandlerFunc(handlers.SendData))
 
 	mux.Get("/ws", http.HandlerFunc(handlers.WsEndPoint))
-	mux.Post("/ws/send", http.HandlerFunc(handlers.WsSend))
 
 	return mux
 

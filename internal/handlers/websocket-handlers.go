@@ -7,9 +7,6 @@ import (
 	"net/http"
 )
 
-// broadcast is the channel to send broadcast messages to
-var broadcast = make(chan string)
-
 // clients is a map of connected clients
 var clients = make(map[*websocket.Conn]bool)
 
@@ -20,6 +17,22 @@ var upgradeConnection = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
+type WsPayload struct {
+	Action   string `json:"action"`
+	Message  string `json:"message"`
+	UserName string `json:"username"`
+}
+
+type WsJsonResponse struct {
+	Action      string `json:"action"`
+	Message     string `json:"message"`
+	MessageType string `json:"message_type"`
+}
+
+type WebSocketConnection struct {
+	*websocket.Conn
+}
+
 // WsEndPoint handles websocket connections
 func WsEndPoint(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgradeConnection.Upgrade(w, r, nil)
@@ -28,39 +41,60 @@ func WsEndPoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println(fmt.Sprintf("Client Connected from %s", r.RemoteAddr))
+	var response WsJsonResponse
+	response.Message = "<em><small>Connected to server ... </small></em>"
 
-	err = ws.WriteMessage(1, []byte("<em><small>Connected to server ... </small></em>"))
+	err = ws.WriteJSON(response)
 	if err != nil {
 		log.Println(err)
 	}
 
+	conn := WebSocketConnection{Conn: ws}
 	clients[ws] = true
+
+	go HandleConnectionAction(&conn)
 }
 
-// WsSend handles posting a message and broadcasting it
-func WsSend(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
-		return
-	}
+// HandleConnectionAction broadcasts messages to all connected clients
+func HandleConnectionAction(conn *WebSocketConnection) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("ERROR", fmt.Sprintf("%v", r))
+		}
+	}()
 
-	msg := r.Form.Get("payload")
-
-	broadcast <- msg
-
-	http.Redirect(w, r, "/send", http.StatusSeeOther)
-}
-
-// BroadcastMessage broadcasts messages to all connected clients
-func BroadcastMessage() {
 	for {
-		val := <-broadcast
+		payload := WsPayload{}
+
+		err := conn.ReadJSON(&payload)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		var response WsJsonResponse
+
 		for client := range clients {
-			err := client.WriteMessage(websocket.TextMessage, []byte(val))
-			if err != nil {
-				log.Printf("Websocket error: %s", err)
-				_ = client.Close()
-				delete(clients, client)
+			if payload.Action == "broadcast" {
+				response.Action = "broadcast"
+				response.Message = fmt.Sprintf("<strong>%s:</strong> %s", payload.UserName, payload.Message)
+
+				err := client.WriteJSON(response)
+				if err != nil {
+					log.Printf("Websocket error on broadcast: %s", err)
+					_ = client.Close()
+					delete(clients, client)
+				}
+			} else if payload.Action == "alert" {
+				response.Action = "alert"
+				response.Message = payload.Message
+				response.MessageType = "success"
+				err := client.WriteJSON(response)
+				if err != nil {
+					log.Printf("Websocket error on alert: %s", err)
+					_ = client.Close()
+					delete(clients, client)
+				}
 			}
 		}
 	}
