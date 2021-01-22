@@ -1,5 +1,7 @@
 # Working with Websockets in Go
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/tsawler/websockets)](https://goreportcard.com/report/github.com/tsawler/websockets)
+
 The source code for the Udemy course Working with Websockets in Go.
 
 To get the source for a particular section in the course, browse
