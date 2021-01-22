@@ -10,6 +10,10 @@ import (
 // clients is a map of connected clients
 var clients = make(map[*websocket.Conn]bool)
 
+// one channel for each action (and we only have two right now)
+var broadcastChan = make(chan WsPayload)
+var alertChan = make(chan WsPayload)
+
 // upgradeConnection is the websocket upgrader
 var upgradeConnection = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -56,50 +60,70 @@ func WsEndPoint(w http.ResponseWriter, r *http.Request) {
 	conn := WebSocketConnection{Conn: ws}
 	clients[ws] = true
 
-	go HandleConnectionAction(&conn)
+	var payload WsPayload
+
+	err = conn.ReadJSON(&payload)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	// send payload to appropriate channel
+	switch payload.Action {
+	case "broadcast":
+		broadcastChan <- payload
+	case "alert":
+		alertChan <- payload
+	default:
+		// do nothing
+	}
 }
 
-// HandleConnectionAction broadcasts messages to all connected clients
-func HandleConnectionAction(conn *WebSocketConnection) {
+// ListenForWS is the goroutine that listens for our channels
+func ListenForWS() {
+	// when this function closes, for whatever reason, recover it
+	// and write an error message
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("ERROR", fmt.Sprintf("%v", r))
 		}
 	}()
 
+	// this will hold the response we send to connected clients
+	var response WsJsonResponse
+
+	// run forever
 	for {
-		payload := WsPayload{}
+		// when we get an entry into the channel, send back the appropriate
+		// response
+		select {
+		case b := <-broadcastChan:
+			response.Action = "broadcast"
+			response.Message = fmt.Sprintf("<strong>%s:</strong> %s", b.UserName, b.Message)
+			broadcastToAll(response)
 
-		err := conn.ReadJSON(&payload)
-		if err != nil {
-			log.Println(err)
-			continue
+		case a := <-alertChan:
+			response.Action = "alert"
+			response.Message = a.Message
+			response.MessageType = a.MessageType
+			broadcastToAll(response)
+
+		default:
+			// do nothing
 		}
+	}
+}
 
-		var response WsJsonResponse
-
-		for client := range clients {
-			if payload.Action == "broadcast" {
-				response.Action = "broadcast"
-				response.Message = fmt.Sprintf("<strong>%s:</strong> %s", payload.UserName, payload.Message)
-
-				err := client.WriteJSON(response)
-				if err != nil {
-					log.Printf("Websocket error on broadcast: %s", err)
-					_ = client.Close()
-					delete(clients, client)
-				}
-			} else if payload.Action == "alert" {
-				response.Action = "alert"
-				response.Message = payload.Message
-				response.MessageType = payload.MessageType
-				err := client.WriteJSON(response)
-				if err != nil {
-					log.Printf("Websocket error on alert: %s", err)
-					_ = client.Close()
-					delete(clients, client)
-				}
-			}
+// broadcastToAll sends a response to all connected clients, as JSON
+// note that the JSON will show up as part of the WS default json,
+// under "data"
+func broadcastToAll(response WsJsonResponse) {
+	for client := range clients {
+		err := client.WriteJSON(response)
+		if err != nil {
+			log.Printf("Websocket error on alert: %s", err)
+			_ = client.Close()
+			delete(clients, client)
 		}
 	}
 }
