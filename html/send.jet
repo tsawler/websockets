@@ -18,21 +18,53 @@
             <h1 class="mt-3">Send Data</h1>
             <hr>
 
-            <form method="post" action="/ws/send" id="sendForm">
 
-                <div class="form-group">
-                    <label for="payload">Message:</label>
-                    <input class="form-control" type="text" name="payload" id="payload" autocomplete="off">
-                </div>
+            <div class="form-group">
+                <label for="message">Message:</label>
+                <input class="form-control" type="text" name="message" id="message" autocomplete="off">
+            </div>
 
-                <hr>
-                <input type="submit" class="btn btn-primary" value="Send">
-            </form>
+            <div class="form-group mt-2">
+                <label for="message_type">Type</label>
+                <select name="message_type" class="form-select" id="message_type">
+                    <option value="success">Success</option>
+                    <option value="info">Info</option>
+                    <option value="warning">Warning</option>
+                    <option value="error">Error</option>
+                    <option value="neutral">Neutral</option>
+                </select>
+            </div>
+
+            <hr>
+            <a href="javascript:void(0);" id="sendBtn" class="btn btn-outline-secondary">Send alert</a>
+
         </div>
     </div>
 </div>
 
 <script>
+
+    document.getElementById("sendBtn").addEventListener("click", function(){
+        sendMessage()
+    })
+
+
+    let socket = new WebSocket("ws://127.0.0.1:8080/ws");
+
+    socket.onerror = error => {
+        console.log("Error:", error);
+    };
+
+    function sendMessage() {
+        let jsonData = {};
+        jsonData["action"] = "alert";
+        let msg = document.getElementById("message");
+        jsonData["username"] = "System";
+        jsonData["message"] = document.getElementById("message").value;
+        jsonData["message_type"] = document.getElementById("message_type").value;
+        socket.send(JSON.stringify(jsonData));
+        msg.value = "";
+    }
 
 </script>
 </body>

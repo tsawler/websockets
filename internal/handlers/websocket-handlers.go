@@ -18,9 +18,10 @@ var upgradeConnection = websocket.Upgrader{
 }
 
 type WsPayload struct {
-	Action   string `json:"action"`
-	Message  string `json:"message"`
-	UserName string `json:"username"`
+	Action      string `json:"action"`
+	Message     string `json:"message"`
+	UserName    string `json:"username"`
+	MessageType string `json:"message_type"`
 }
 
 type WsJsonResponse struct {
@@ -88,7 +89,7 @@ func HandleConnectionAction(conn *WebSocketConnection) {
 			} else if payload.Action == "alert" {
 				response.Action = "alert"
 				response.Message = payload.Message
-				response.MessageType = "success"
+				response.MessageType = payload.MessageType
 				err := client.WriteJSON(response)
 				if err != nil {
 					log.Printf("Websocket error on alert: %s", err)
