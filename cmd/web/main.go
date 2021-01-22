@@ -19,8 +19,7 @@ func main() {
 	log.Println("Starting websocket goroutine")
 	go handlers.ListenForWS()
 
-	log.Println("Starting application on port", port)
-
 	// start the web server
+	log.Println("Starting application on port", port)
 	_ = http.ListenAndServe(port, mux)
 }
