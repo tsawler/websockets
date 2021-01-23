@@ -143,7 +143,7 @@ func ListenToChannels() {
 			response.SkipSender = true
 			response.CurrentConn = e.Conn
 			response.Action = "left"
-			response.Message = fmt.Sprintf(`<small class="text-muted"><em>%s entered</em></small>`, e.UserName)
+			response.Message = fmt.Sprintf(`<small class="text-muted"><em>%s left</em></small>`, e.UserName)
 			broadcastToAll(response)
 		}
 
