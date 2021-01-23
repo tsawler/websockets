@@ -18,7 +18,7 @@ var whoIsThereChan = make(chan WsPayload)
 var enterChan = make(chan WsPayload)
 var leaveChan = make(chan WsPayload)
 
-// upgradeConnection is the websocket upgrader
+// upgradeConnection is the upgraded connection
 var upgradeConnection = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
