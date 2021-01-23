@@ -5,12 +5,16 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+	"time"
 )
+
+const writeWait = 2 * time.Second
 
 // clients is a map of connected clients
 var clients = make(map[*websocket.Conn]bool)
 
 // one channel for each action (and we only have two right now)
+var connectChan = make(chan WsPayload)
 var broadcastChan = make(chan WsPayload)
 var alertChan = make(chan WsPayload)
 
@@ -43,6 +47,7 @@ type WebSocketConnection struct {
 
 // WsEndPoint handles websocket connections
 func WsEndPoint(w http.ResponseWriter, r *http.Request) {
+	log.Println("Hit the WsEndPoint")
 	ws, err := upgradeConnection.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
@@ -60,46 +65,40 @@ func WsEndPoint(w http.ResponseWriter, r *http.Request) {
 	conn := WebSocketConnection{Conn: ws}
 	clients[ws] = true
 
-	var payload WsPayload
+	go ListenForWS(&conn)
 
-	err = conn.ReadJSON(&payload)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	// send payload to appropriate channel
-	switch payload.Action {
-	case "broadcast":
-		broadcastChan <- payload
-	case "alert":
-		alertChan <- payload
-	default:
-		// do nothing
-	}
 }
 
 // ListenForWS is the goroutine that listens for our channels
-func ListenForWS() {
-	// when this function closes, for whatever reason, recover it
-	// and write an error message
-	defer func() {
-		if r := recover(); r != nil {
-			log.Println("ERROR", fmt.Sprintf("%v", r))
-		}
-	}()
+func ListenForWS(conn *WebSocketConnection) {
+	var payload WsPayload
 
-	// this will hold the response we send to connected clients
-	var response WsJsonResponse
-
-	// run forever
 	for {
-		// when we get an entry into the channel, send back the appropriate
-		// response
+		err := conn.ReadJSON(&payload)
+		if err != nil {
+			log.Println("invalid json")
+		} else {
+			// send payload to appropriate channel
+			switch payload.Action {
+			case "broadcast":
+				broadcastChan <- payload
+			case "alert":
+				alertChan <- payload
+			}
+		}
+	}
+
+}
+
+// ListenToChannels listens to all channels and pushes data to broadcast function
+func ListenToChannels() {
+	var response WsJsonResponse
+	for {
 		select {
 		case b := <-broadcastChan:
 			response.Action = "broadcast"
 			response.Message = fmt.Sprintf("<strong>%s:</strong> %s", b.UserName, b.Message)
+			log.Println("Sending broadcast of", response.Message)
 			broadcastToAll(response)
 
 		case a := <-alertChan:
@@ -107,9 +106,6 @@ func ListenForWS() {
 			response.Message = a.Message
 			response.MessageType = a.MessageType
 			broadcastToAll(response)
-
-		default:
-			// do nothing
 		}
 	}
 }
@@ -121,7 +117,7 @@ func broadcastToAll(response WsJsonResponse) {
 	for client := range clients {
 		err := client.WriteJSON(response)
 		if err != nil {
-			log.Printf("Websocket error on alert: %s", err)
+			log.Printf("Websocket error on %s: %s", response.Action, err)
 			_ = client.Close()
 			delete(clients, client)
 		}

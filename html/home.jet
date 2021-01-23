@@ -44,8 +44,13 @@
             <hr>
             <a href="javascript:void(0);" id="sendBtn" class="btn btn-outline-secondary">Send message</a>
 
+            <div id="status" class="mt-2 float-end">
 
-            <div id="output" class="chatBox mt-5">
+            </div>
+
+            <div class="clearfix"></div>
+
+            <div id="output" class="chatBox mt-2">
 
             </div>
         </div>
@@ -61,20 +66,66 @@
 
 <script>
 
-    let socket = new ReconnectingWebSocket("ws://127.0.0.1:8080/ws", null, {debug: true, reconnectInterval: 3000});
+    let socket = null;
     let o = document.getElementById("output")
 
-    document.getElementById("sendBtn").addEventListener("click", function () {
-        sendMessage()
-    })
+    document.addEventListener("DOMContentLoaded", function() {
+        socket = new ReconnectingWebSocket("ws://127.0.0.1:8080/ws", null, {debug: true, reconnectInterval: 3000});
 
-    document.getElementById("message").addEventListener("keydown", function (event) {
-        if (event.code === "Enter") {
-            event.preventDefault();
-            event.stopPropagation();
-            sendMessage();
+        document.getElementById("sendBtn").addEventListener("click", function () {
+            if (!socket) {
+                console.log("no connection");
+                return false;
+            }
+            sendMessage()
+        })
+
+        document.getElementById("message").addEventListener("keydown", function (event) {
+            if (event.code === "Enter") {
+                if (!socket) {
+                    console.log("no connection");
+                    return false;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                sendMessage();
+            }
+        })
+
+        const offline = `<span class="badge bg-danger">Not connected</span>`;
+        const online = `<span class="badge bg-success">Connected</span>`;
+        let statusDiv = document.getElementById("status");
+
+        socket.onopen = () => {
+            console.log("Successfully Connected");
+            statusDiv.innerHTML = online;
+        };
+
+        socket.onclose = event => {
+            socket.send("Client Closed!");
+            statusDiv.innerHTML = offline;
+        };
+
+        socket.onerror = error => {
+            statusDiv.innerHTML = offline;
+        };
+
+        socket.onmessage = msg => {
+            let data = JSON.parse(msg.data);
+            switch (data.action) {
+                case "broadcast":
+                    o.innerHTML = o.innerHTML + data.message + "<br>";
+                    break;
+                case "alert":
+                    notify(data.message, data.message_type);
+                    break;
+                default:
+                    o.innerHTML = o.innerHTML + data.message + "<br>";
+            }
         }
     })
+
+
 
     function sendMessage() {
         let jsonData = {};
@@ -90,44 +141,6 @@
             notify("You must specify a username & message!", "error");
         }
     }
-
-    socket.onopen = () => {
-        console.log("Successfully Connected");
-        o.innerHTML = o.innerHTML + "<small><span class='text-success'>"
-            + "Connected to server!"
-            + "</span></small>"
-            + "<br>";
-    };
-
-    socket.onclose = event => {
-        socket.send("Client Closed!");
-        o.innerHTML = o.innerHTML + "<span class='text-danger'>"
-            + "Connection closed!"
-            + "</span>"
-            + "<br>";
-    };
-
-    socket.onerror = error => {
-        console.log("Error:", error);
-        o.innerHTML = o.innerHTML + "<small><span class='text-danger'>"
-            + "Connection error! Will attempt to reconnect..."
-            + "</span></small>"
-            + "<br>";
-    };
-
-    socket.onmessage = msg => {
-        let data = JSON.parse(msg.data);
-
-        switch (data.action) {
-            case "broadcast":
-                o.innerHTML = o.innerHTML + data.message + "<br>";
-                break;
-            case "alert":
-                notify(data.message, data.message_type);
-                break;
-        }
-    }
-
 
     // handle posting alerts
     function notify(msg, msgType) {

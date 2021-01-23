@@ -14,12 +14,11 @@ func main() {
 	// get our routes
 	mux := routes()
 
-	// start the goroutine to listen for pushes
-	// to our channels
-	log.Println("Starting websocket goroutine")
-	go handlers.ListenForWS()
+	// start websocket functionality
+	log.Println("Starting websocket functionality...")
+	go handlers.ListenToChannels()
 
 	// start the web server
-	log.Println("Starting application on port", port)
+	log.Println("Starting application on port...", port)
 	_ = http.ListenAndServe(port, mux)
 }

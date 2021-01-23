@@ -48,25 +48,42 @@
 </div>
 
 <script>
+    let socket = null;
 
-    document.getElementById("sendBtn").addEventListener("click", function(){
-        sendMessage()
+    document.addEventListener("DOMContentLoaded", function(){
+
+        document.getElementById("sendBtn").addEventListener("click", function(){
+            sendMessage();
+        })
+
+        socket = new ReconnectingWebSocket("ws://127.0.0.1:8080/ws", null, {debug: true, reconnectInterval: 3000});
+
+        socket.onopen = () => {
+            console.log("Successfully Connected");
+        };
+
+        socket.onclose = event => {
+            socket.send("Client Closed!");
+        };
+
+        socket.onerror = error => {
+            console.log("Error:", error);
+        };
+
+        socket.onmessage = msg => {
+            let data = JSON.parse(msg.data);
+            console.log(data);
+        }
     })
-
-
-    let socket = new WebSocket("ws://127.0.0.1:8080/ws");
-
-    socket.onerror = error => {
-        console.log("Error:", error);
-    };
 
     function sendMessage() {
         let jsonData = {};
         jsonData["action"] = "alert";
         let msg = document.getElementById("message");
+        let msgType = document.getElementById("message_type");
         jsonData["username"] = "System";
-        jsonData["message"] = document.getElementById("message").value;
-        jsonData["message_type"] = document.getElementById("message_type").value;
+        jsonData["message"] = msg.value;
+        jsonData["message_type"] = msgType.value;
         socket.send(JSON.stringify(jsonData));
         msg.value = "";
     }
