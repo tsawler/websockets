@@ -28,7 +28,7 @@
 <body>
 <div class="container">
     <div class="row">
-        <div class="col">
+        <div class="col-md-8">
             <h1 class="mt-3">Home page</h1>
             <hr>
 
@@ -53,6 +53,13 @@
             <div id="output" class="chatBox mt-2">
 
             </div>
+        </div>
+        <div class="col-md-4">
+            <h1 class="mt-3">Who's Online</h1>
+            <hr>
+            <ul id="online_users">
+
+            </ul>
         </div>
     </div>
 </div>

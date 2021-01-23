@@ -85,7 +85,7 @@ func ListenForWS(conn *WebSocketConnection) {
 	for {
 		err := conn.ReadJSON(&payload)
 		if err != nil {
-			// do nothing; it's a connection
+			// do nothing
 		} else {
 			payload.Conn = *conn
 
@@ -102,7 +102,6 @@ func ListenForWS(conn *WebSocketConnection) {
 			}
 		}
 	}
-
 }
 
 // ListenToChannels listens to all channels and pushes data to broadcast function
