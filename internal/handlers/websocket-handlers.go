@@ -10,7 +10,7 @@ import (
 // clients is a map of connected clients
 var clients = make(map[*websocket.Conn]bool)
 
-// one channel for each action (and we only have two right now)
+// one channel for each action
 var connectChan = make(chan WsPayload)
 var broadcastChan = make(chan WsPayload)
 var alertChan = make(chan WsPayload)
