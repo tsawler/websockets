@@ -47,6 +47,8 @@
     </div>
 </div>
 
+<script src="/static/reconnecting-websocket.min.js"></script>
+
 <script>
     let socket = null;
 

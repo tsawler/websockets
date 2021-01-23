@@ -83,6 +83,7 @@ func ListenForWS(conn *WebSocketConnection) {
 			case "broadcast":
 				broadcastChan <- payload
 			case "alert":
+				log.Println("Sending", payload.Message, "to alert chan")
 				alertChan <- payload
 			}
 		}
