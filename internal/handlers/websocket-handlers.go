@@ -17,6 +17,7 @@ var clients = make(map[*websocket.Conn]bool)
 var connectChan = make(chan WsPayload)
 var broadcastChan = make(chan WsPayload)
 var alertChan = make(chan WsPayload)
+var whoIsThereChan = make(chan WsPayload)
 
 // upgradeConnection is the websocket upgrader
 var upgradeConnection = websocket.Upgrader{
@@ -82,7 +83,7 @@ func ListenForWS(conn *WebSocketConnection) {
 	for {
 		err := conn.ReadJSON(&payload)
 		if err != nil {
-			log.Println("invalid json")
+			// do nothing; it's a connection
 		} else {
 			// send payload to appropriate channel
 			switch payload.Action {
@@ -102,18 +103,32 @@ func ListenToChannels() {
 	var response WsJsonResponse
 	for {
 		select {
+		// message to send to everyone from a user
 		case b := <-broadcastChan:
 			response.Action = "broadcast"
 			response.Message = fmt.Sprintf("<strong>%s:</strong> %s", b.UserName, b.Message)
 			log.Println("Sending broadcast of", response.Message)
 			broadcastToAll(response)
-
+		// send an alert
 		case a := <-alertChan:
 			response.Action = "alert"
 			response.Message = a.Message
 			response.MessageType = a.MessageType
 			broadcastToAll(response)
+		// list users in chat
+		case w := <-whoIsThereChan:
+			response.Action = "list"
+			response.Message = w.Message
+			broadcastToAll(response)
+		// someone connected
+		case c := <-connectChan:
+			response.Action = "connected"
+			response.Message = c.Message
+			broadcastToAll(response)
+
+			// do one for enter and one for leave
 		}
+
 	}
 }
 
