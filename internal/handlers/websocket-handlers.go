@@ -155,10 +155,12 @@ func ListenToChannels() {
 func broadcastToAll(response WsJsonResponse) {
 	for client := range clients {
 
+		// skip sender, if appropriate
 		if response.SkipSender && response.CurrentConn.Conn == client {
 			continue
 		}
 
+		// broadcast to every connected client
 		err := client.WriteJSON(response)
 		if err != nil {
 			log.Printf("Websocket error on %s: %s", response.Action, err)
