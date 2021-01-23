@@ -99,6 +99,10 @@
         socket.onopen = () => {
             console.log("Successfully Connected");
             statusDiv.innerHTML = online;
+            let jsonData = {};
+            jsonData["action"] = "entered";
+            console.log("sending entered");
+            socket.send(JSON.stringify(jsonData));
         };
 
         socket.onclose = event => {
@@ -118,6 +122,13 @@
                     break;
                 case "alert":
                     notify(data.message, data.message_type);
+                    break;
+                case "entered":
+                    console.log("entered!")
+                    o.innerHTML = o.innerHTML + data.message + "<br>";
+                    break;
+                case "left":
+                    o.innerHTML = o.innerHTML + data.message + "<br>";
                     break;
                 default:
                     o.innerHTML = o.innerHTML + data.message + "<br>";
