@@ -146,7 +146,6 @@ func ListenToChannels() {
 			response.Message = fmt.Sprintf(`<small class="text-muted"><em>%s left</em></small>`, e.UserName)
 			broadcastToAll(response)
 		}
-
 	}
 }
 
