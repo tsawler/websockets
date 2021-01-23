@@ -71,6 +71,12 @@ func WsEndPoint(w http.ResponseWriter, r *http.Request) {
 
 // ListenForWS is the goroutine that listens for our channels
 func ListenForWS(conn *WebSocketConnection) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("ERROR", fmt.Sprintf("%v", r))
+		}
+	}()
+
 	var payload WsPayload
 
 	for {
