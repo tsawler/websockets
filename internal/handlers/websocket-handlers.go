@@ -5,10 +5,11 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+	"sort"
 )
 
 // clients is a map of connected clients
-var clients = make(map[*websocket.Conn]bool)
+var clients = make(map[WebSocketConnection]string)
 
 // one channel for each action
 var connectChan = make(chan WsPayload)
@@ -17,6 +18,7 @@ var alertChan = make(chan WsPayload)
 var whoIsThereChan = make(chan WsPayload)
 var enterChan = make(chan WsPayload)
 var leaveChan = make(chan WsPayload)
+var userNameChan = make(chan WsPayload)
 
 // upgradeConnection is the upgraded connection
 var upgradeConnection = websocket.Upgrader{
@@ -36,11 +38,12 @@ type WsPayload struct {
 
 // WsJsonResponse defines the json we send back to client
 type WsJsonResponse struct {
-	Action      string              `json:"action"`
-	Message     string              `json:"message"`
-	MessageType string              `json:"message_type"`
-	SkipSender  bool                `json:"-"`
-	CurrentConn WebSocketConnection `json:"-"`
+	Action         string              `json:"action"`
+	Message        string              `json:"message"`
+	MessageType    string              `json:"message_type"`
+	SkipSender     bool                `json:"-"`
+	CurrentConn    WebSocketConnection `json:"-"`
+	ConnectedUsers []string            `json:"connected_users"`
 }
 
 // WebSocketConnection holds the websocket connection
@@ -66,7 +69,7 @@ func WsEndPoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conn := WebSocketConnection{Conn: ws}
-	clients[ws] = true
+	clients[conn] = ""
 
 	go ListenForWS(&conn)
 
@@ -98,7 +101,12 @@ func ListenForWS(conn *WebSocketConnection) {
 			case "entered":
 				enterChan <- payload
 			case "left":
+				delete(clients, *conn)
 				leaveChan <- payload
+			case "username":
+				userNameChan <- payload
+			case "who":
+				whoIsThereChan <- payload
 			}
 		}
 	}
@@ -112,23 +120,27 @@ func ListenToChannels() {
 		// message to send to everyone from a user
 		case e := <-broadcastChan:
 			response.Action = "broadcast"
+			response.SkipSender = false
 			response.Message = fmt.Sprintf("<strong>%s:</strong> %s", e.UserName, e.Message)
 			log.Println("Sending broadcast of", response.Message)
 			broadcastToAll(response)
 		// send an alert
 		case e := <-alertChan:
 			response.Action = "alert"
+			response.SkipSender = false
 			response.Message = e.Message
 			response.MessageType = e.MessageType
 			broadcastToAll(response)
 		// list users in chat
 		case e := <-whoIsThereChan:
 			response.Action = "list"
+			response.SkipSender = false
 			response.Message = e.Message
 			broadcastToAll(response)
 		// someone connected
 		case e := <-connectChan:
 			response.Action = "connected"
+			response.SkipSender = false
 			response.Message = e.Message
 			broadcastToAll(response)
 		// someone entered
@@ -140,23 +152,74 @@ func ListenToChannels() {
 			broadcastToAll(response)
 		// someone left
 		case e := <-leaveChan:
-			response.SkipSender = true
+			log.Println("Deleting user from list")
+			response.SkipSender = false
 			response.CurrentConn = e.Conn
 			response.Action = "left"
 			response.Message = fmt.Sprintf(`<small class="text-muted"><em>%s left</em></small>`, e.UserName)
 			broadcastToAll(response)
+
+			userList := getUserNameList()
+			response.Action = "list_users"
+			response.ConnectedUsers = userList
+			response.SkipSender = false
+			broadcastToAll(response)
+		// username change
+		case e := <-userNameChan:
+			userList := addToUserList(e.Conn, e.UserName)
+			response.Action = "list_users"
+			response.ConnectedUsers = userList
+			response.SkipSender = false
+			broadcastToAll(response)
+		// list users
+		case <-whoIsThereChan:
+			userList := getUserNameList()
+			response.Action = "list_users"
+			response.ConnectedUsers = userList
+			response.SkipSender = false
+			broadcastToAll(response)
 		}
 	}
+}
+
+func getUserNameList() []string {
+	var userNames []string
+	for _, value := range clients {
+		if value != "" {
+			userNames = append(userNames, value)
+		}
+	}
+	sort.Strings(userNames)
+
+	return userNames
+}
+
+func addToUserList(conn WebSocketConnection, u string) []string {
+	log.Println("Getting list of users")
+	var userNames []string
+	clients[conn] = u
+	for _, value := range clients {
+		if value != "" {
+			userNames = append(userNames, value)
+		}
+	}
+	sort.Strings(userNames)
+
+	return userNames
 }
 
 // broadcastToAll sends a response to all connected clients, as JSON
 // note that the JSON will show up as part of the WS default json,
 // under "data"
 func broadcastToAll(response WsJsonResponse) {
+	log.Println("Broadcasting")
+	log.Println("Action:", response.Action)
+	log.Println("Users:", response.ConnectedUsers)
+	log.Println("skip is", response.SkipSender)
 	for client := range clients {
 
 		// skip sender, if appropriate
-		if response.SkipSender && response.CurrentConn.Conn == client {
+		if response.SkipSender && response.CurrentConn == client {
 			continue
 		}
 
