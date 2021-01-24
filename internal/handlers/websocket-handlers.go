@@ -97,7 +97,7 @@ func ListenForWS(conn *WebSocketConnection) {
 	}
 }
 
-// ListenToChannel listens to all channels and pushes data to broadcast function
+// ListenToWsChannel listens to all channels and pushes data to broadcast function
 func ListenToWsChannel() {
 	var response WsJsonResponse
 	for {
