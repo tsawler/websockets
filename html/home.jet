@@ -80,12 +80,12 @@
     let socket = null;
     let o = document.getElementById("output")
 
-    window.addEventListener("unload", function(){
+    window.onbeforeunload = function(){
         console.log("leaving");
         let jsonData = {};
         jsonData["action"] = "left";
         socket.send(JSON.stringify(jsonData));
-    });
+    };
 
     document.addEventListener("DOMContentLoaded", function () {
 

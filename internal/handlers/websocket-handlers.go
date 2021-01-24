@@ -20,6 +20,8 @@ var enterChan = make(chan WsPayload)
 var leaveChan = make(chan WsPayload)
 var userNameChan = make(chan WsPayload)
 
+var wsChan = make(chan WsPayload)
+
 // upgradeConnection is the upgraded connection
 var upgradeConnection = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -53,7 +55,6 @@ type WebSocketConnection struct {
 
 // WsEndPoint handles websocket connections
 func WsEndPoint(w http.ResponseWriter, r *http.Request) {
-	log.Println("Hit the WsEndPoint")
 	ws, err := upgradeConnection.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
@@ -91,87 +92,66 @@ func ListenForWS(conn *WebSocketConnection) {
 			// do nothing
 		} else {
 			payload.Conn = *conn
-
-			// send payload to appropriate channel
-			switch payload.Action {
-			case "broadcast":
-				broadcastChan <- payload
-			case "alert":
-				alertChan <- payload
-			case "entered":
-				enterChan <- payload
-			case "left":
-				delete(clients, *conn)
-				leaveChan <- payload
-			case "username":
-				userNameChan <- payload
-			case "who":
-				whoIsThereChan <- payload
-			}
+			wsChan <- payload
 		}
 	}
 }
 
-// ListenToChannels listens to all channels and pushes data to broadcast function
-func ListenToChannels() {
+// ListenToChannel listens to all channels and pushes data to broadcast function
+func ListenToWsChannel() {
 	var response WsJsonResponse
 	for {
-		select {
-		// message to send to everyone from a user
-		case e := <-broadcastChan:
+		e := <-wsChan
+
+		switch e.Action {
+		case "broadcast":
 			response.Action = "broadcast"
 			response.SkipSender = false
 			response.Message = fmt.Sprintf("<strong>%s:</strong> %s", e.UserName, e.Message)
 			broadcastToAll(response)
-		// send an alert
-		case e := <-alertChan:
+
+		case "alert":
 			response.Action = "alert"
 			response.SkipSender = false
 			response.Message = e.Message
 			response.MessageType = e.MessageType
 			broadcastToAll(response)
-		// list users in chat
-		case e := <-whoIsThereChan:
+
+		case "list_users":
 			response.Action = "list"
 			response.SkipSender = false
 			response.Message = e.Message
 			broadcastToAll(response)
-		// someone connected
-		case e := <-connectChan:
+
+		case "connect":
 			response.Action = "connected"
 			response.SkipSender = false
 			response.Message = e.Message
 			broadcastToAll(response)
-		// someone entered
-		case e := <-enterChan:
+
+		case "entered":
 			response.SkipSender = true
 			response.CurrentConn = e.Conn
 			response.Action = "entered"
 			response.Message = `<small class="text-muted"><em>New user in room</em></small>`
 			broadcastToAll(response)
-		// someone left
-		case e := <-leaveChan:
+
+		case "left":
 			response.SkipSender = false
 			response.CurrentConn = e.Conn
 			response.Action = "left"
 			response.Message = fmt.Sprintf(`<small class="text-muted"><em>%s left</em></small>`, e.UserName)
 			broadcastToAll(response)
 
+			delete(clients, e.Conn)
 			userList := getUserNameList()
 			response.Action = "list_users"
 			response.ConnectedUsers = userList
 			response.SkipSender = false
 			broadcastToAll(response)
-		// username change
-		case e := <-userNameChan:
+
+		case "username":
 			userList := addToUserList(e.Conn, e.UserName)
-			response.Action = "list_users"
-			response.ConnectedUsers = userList
-			response.SkipSender = false
-			broadcastToAll(response)
-		// list users
-		case <-whoIsThereChan:
-			userList := getUserNameList()
 			response.Action = "list_users"
 			response.ConnectedUsers = userList
 			response.SkipSender = false
@@ -193,7 +173,6 @@ func getUserNameList() []string {
 }
 
 func addToUserList(conn WebSocketConnection, u string) []string {
-	log.Println("Getting list of users")
 	var userNames []string
 	clients[conn] = u
 	for _, value := range clients {
@@ -210,12 +189,7 @@ func addToUserList(conn WebSocketConnection, u string) []string {
 // note that the JSON will show up as part of the WS default json,
 // under "data"
 func broadcastToAll(response WsJsonResponse) {
-	log.Println("Broadcasting")
-	log.Println("Action:", response.Action)
-	log.Println("Users:", response.ConnectedUsers)
-	log.Println("skip is", response.SkipSender)
 	for client := range clients {
-
 		// skip sender, if appropriate
 		if response.SkipSender && response.CurrentConn == client {
 			continue

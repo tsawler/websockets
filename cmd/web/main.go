@@ -16,7 +16,7 @@ func main() {
 
 	// start websocket functionality
 	log.Println("Starting websocket functionality...")
-	go handlers.ListenToChannels()
+	go handlers.ListenToWsChannel()
 
 	// start the web server
 	log.Println("Starting application on port...", port)
