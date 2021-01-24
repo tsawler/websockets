@@ -122,7 +122,6 @@ func ListenToChannels() {
 			response.Action = "broadcast"
 			response.SkipSender = false
 			response.Message = fmt.Sprintf("<strong>%s:</strong> %s", e.UserName, e.Message)
-			log.Println("Sending broadcast of", response.Message)
 			broadcastToAll(response)
 		// send an alert
 		case e := <-alertChan:
@@ -152,7 +151,6 @@ func ListenToChannels() {
 			broadcastToAll(response)
 		// someone left
 		case e := <-leaveChan:
-			log.Println("Deleting user from list")
 			response.SkipSender = false
 			response.CurrentConn = e.Conn
 			response.Action = "left"
